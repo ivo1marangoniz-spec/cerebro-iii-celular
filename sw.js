@@ -1,6 +1,6 @@
 // Service worker: guarda os arquivos do app no celular para ele abrir SEM internet.
 // As ideias não passam por aqui (ficam no IndexedDB). Ao mudar qualquer arquivo do app, aumente VERSAO.
-const VERSAO = 'cerebro-iii-v3';
+const VERSAO = 'cerebro-iii-v4';
 const ARQUIVOS = [
   './',
   './index.html',
@@ -14,7 +14,9 @@ const ARQUIVOS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ARQUIVOS)));
+  // cache: 'reload' busca no servidor, nunca na memória do navegador (senão uma versão nova
+  // poderia guardar arquivos antigos, já que o GitHub Pages deixa arquivos em cache por 10 minutos).
+  e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ARQUIVOS.map((u) => new Request(u, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', (e) => {
