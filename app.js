@@ -1,6 +1,7 @@
 // Tela do app do celular: capturar ideias, ver as salvas e a situação de cada uma. Tudo local (offline).
 (() => {
   const A = window.Armazenamento;
+  const S = window.Sinc;
   const $ = (id) => document.getElementById(id);
   const el = (tag, className, texto) => {
     const e = document.createElement(tag);
@@ -47,6 +48,7 @@
       mostrarResultado('Ideia salva neste celular.');
       filtro === 'enviadas' && definirFiltro('todas');
       await carregar();
+      sincronizarAgora(); // se houver internet e a sincronização estiver configurada
     } catch (err) {
       mostrarResultado(`Não foi possível salvar: ${err.message} Seu texto continua no campo.`, true);
     }
@@ -100,6 +102,7 @@
       const salvarB = el('button', 'botao', 'Salvar');
       const cancelar = el('button', 'botao', 'Cancelar');
       salvarB.onclick = async () => {
+        if (S.ocupado()) { mostrarResultado('Aguarde o envio terminar para salvar a edição.', true); return; }
         try { await A.editar(ideia.id, campo.value); editando = null; mostrarResultado('Ideia atualizada.'); await carregar(); } catch (err) { mostrarResultado(err.message, true); }
       };
       cancelar.onclick = () => { editando = null; renderLista(); };
@@ -120,10 +123,13 @@
       acoes.append(copiar);
       if (ideia.situacao === 'pendente') {
         const editar = el('button', 'botao', 'Editar');
-        editar.onclick = (e) => { e.stopPropagation(); editando = ideia.id; renderLista(); };
+        // Durante um envio a ideia pode estar saindo do aparelho: editar/apagar só depois que terminar.
+        const travado = () => { if (!S.ocupado()) return false; mostrarResultado('Aguarde o envio terminar para editar ou apagar.', true); return true; };
+        editar.onclick = (e) => { e.stopPropagation(); if (travado()) return; editando = ideia.id; renderLista(); };
         const apagar = el('button', 'botao perigo', 'Apagar');
         apagar.onclick = async (e) => {
           e.stopPropagation();
+          if (travado()) return;
           if (!confirm('Apagar esta ideia deste celular? Ela ainda não foi enviada, então será perdida.')) return;
           try { await A.apagar(ideia.id); aberta = null; mostrarResultado('Ideia apagada.'); await carregar(); } catch (err) { mostrarResultado(err.message, true); }
         };
@@ -178,6 +184,83 @@
   }
   $('btn-exportar').onclick = exportar;
 
+  // ---------- sincronização ----------
+  let ultimoErro = '';
+  function renderSinc() {
+    const st = $('sinc-status');
+    st.classList.remove('erro');
+    $('btn-enviar').hidden = !S.configurado();
+    $('btn-enviar').disabled = S.ocupado();
+    $('btn-config').textContent = S.configurado() ? 'Alterar configuração' : 'Configurar sincronização';
+    if (!S.configurado()) { st.textContent = 'Sincronização não configurada: as ideias ficam só neste celular.'; return; }
+    if (S.ocupado()) { st.textContent = 'Enviando…'; return; }
+    if (ultimoErro) { st.textContent = ultimoErro; st.classList.add('erro'); return; }
+    const ult = S.ultima();
+    st.textContent = !navigator.onLine ? 'Sem internet: as ideias serão enviadas quando a conexão voltar.'
+      : ult ? `Sincronizado às ${quando(ult)}` : 'Pronto para enviar.';
+  }
+
+  async function sincronizarAgora() {
+    if (!S.configurado() || S.ocupado()) { renderSinc(); return; }
+    renderSinc();
+    const p = S.sincronizar();
+    renderSinc(); // mostra "Enviando…"
+    const r = await p;
+    if (r.offline || r.ignorado || r.semConfig) { renderSinc(); return; }
+    ultimoErro = r.erro || '';
+    if (r.enviadas || r.noCerebro) mostrarResultado([r.enviadas && `${r.enviadas} ideia(s) enviada(s).`, r.noCerebro && `${r.noCerebro} já no cérebro.`].filter(Boolean).join(' '));
+    await carregar();
+    renderSinc();
+  }
+  $('btn-enviar').onclick = sincronizarAgora;
+  window.addEventListener('online', sincronizarAgora);
+  window.addEventListener('offline', renderSinc);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizarAgora(); });
+
+  // Formulário de configuração. A chave e a senha nunca são mostradas de volta (campos vazios = manter as atuais).
+  function abrirConfig(abrir) {
+    $('config').hidden = !abrir;
+    $('cfg-resultado').textContent = '';
+    if (!abrir) return;
+    const c = S.config();
+    $('cfg-repo').value = c.repo;
+    $('cfg-token').value = '';
+    $('cfg-senha').value = '';
+    $('cfg-senha2').value = '';
+    $('cfg-token').placeholder = c.token ? '(guardada; deixe vazio para manter)' : 'github_pat_…';
+    $('cfg-senha').placeholder = c.senha ? '(guardada; deixe vazio para manter)' : '';
+    $('btn-cfg-remover').hidden = !S.configurado();
+  }
+  $('btn-config').onclick = () => abrirConfig($('config').hidden);
+  $('btn-cfg-cancelar').onclick = () => abrirConfig(false);
+  $('config').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const atual = S.config();
+    const senha = $('cfg-senha').value || atual.senha;
+    if ($('cfg-senha').value && $('cfg-senha').value !== $('cfg-senha2').value) { $('cfg-resultado').textContent = 'As senhas não são iguais.'; return; }
+    const anterior = { ...atual };
+    try {
+      S.salvarConfig({ repo: $('cfg-repo').value, token: $('cfg-token').value || atual.token, senha });
+      $('cfg-resultado').textContent = 'Testando a conexão…';
+      await S.testar();
+      abrirConfig(false);
+      ultimoErro = '';
+      mostrarResultado('Sincronização configurada.');
+      sincronizarAgora();
+    } catch (err) {
+      // Teste falhou: volta à configuração anterior (se havia) para não deixar o envio quebrado.
+      if (anterior.repo && anterior.token && anterior.senha) S.salvarConfig(anterior); else S.apagarConfig();
+      $('cfg-resultado').textContent = err.message === 'Failed to fetch' ? 'Sem conexão com o GitHub. Tente de novo com internet.' : err.message;
+    }
+    renderSinc();
+  });
+  $('btn-cfg-remover').onclick = () => {
+    if (!confirm('Remover a chave e a senha deste celular? As ideias continuam guardadas aqui.')) return;
+    S.apagarConfig();
+    abrirConfig(false);
+    renderSinc();
+  };
+
   // ---------- aviso de instalação (iPhone) ----------
   const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   $('aviso-instalar').hidden = !(ehIOS && !instalado() && lerPref('aviso-instalar') !== 'fechado');
@@ -206,5 +289,5 @@
 
   // ---------- início ----------
   A.pedirPersistencia().then((p) => { persistente = p; renderInfo(); });
-  carregar();
+  carregar().then(sincronizarAgora);
 })();

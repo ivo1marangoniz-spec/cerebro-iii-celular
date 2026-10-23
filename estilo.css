@@ -119,6 +119,21 @@ main { max-width: 640px; margin: 0 auto; padding: 16px 16px 40px; display: flex;
 .ideia-editar { width: 100%; margin-top: 8px; min-height: 120px; padding: 12px 14px; font: 16px/1.55 var(--fonte); color: var(--texto); background: var(--fundo-fundo); border: 1px solid var(--borda-forte); border-radius: var(--raio); resize: vertical; }
 .ideia-nota { color: var(--texto-3); font-size: 12px; margin-top: 8px; }
 
+/* Sincronização */
+.sinc { display: flex; flex-direction: column; gap: 6px; background: var(--fundo-elevado); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; }
+.sinc-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sinc-status { font-size: 14px; color: var(--texto-2); }
+.sinc-status.erro { color: var(--vermelho); }
+.sinc .botao-texto { align-self: flex-start; padding-left: 0; }
+.config { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.config p { margin: 0; line-height: 1.5; }
+.config b { color: var(--texto-2); }
+.config label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--texto-2); }
+.config input { font: 16px var(--fonte); color: var(--texto); background: var(--fundo-fundo); border: 1px solid var(--borda-forte); border-radius: 10px; padding: 11px 12px; outline: none; }
+.config input:focus { border-color: #5a5a5a; }
+.config-botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.perigo-texto { color: var(--texto-3) !important; font-weight: 400 !important; }
+
 /* Aparelho */
 .aparelho { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--borda); padding-top: 22px; }
 .aparelho p { margin: 0; line-height: 1.5; }

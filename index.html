@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com">
   <meta name="theme-color" content="#1a1a1a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -43,6 +43,38 @@
       <div id="resultado" class="resultado" role="status" aria-live="polite"></div>
     </section>
 
+    <section class="sinc">
+      <div class="sinc-linha">
+        <span id="sinc-status" class="sinc-status"></span>
+        <button id="btn-enviar" class="botao" type="button">Enviar agora</button>
+      </div>
+      <button id="btn-config" class="botao-texto" type="button">Configurar sincronização</button>
+      <form id="config" class="config" hidden autocomplete="off">
+        <p class="discreto">As ideias saem do celular <b>criptografadas</b> com a sua senha e vão para o seu repositório
+          <b>privado</b> no GitHub. O computador busca lá e grava no Obsidian. Sem a senha, ninguém lê o conteúdo.</p>
+        <label>Repositório (usuário/nome)
+          <input id="cfg-repo" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="usuario/cerebro-iii-ideias">
+        </label>
+        <label>Chave de acesso do GitHub (fine-grained token)
+          <input id="cfg-token" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="github_pat_…">
+        </label>
+        <label>Senha da criptografia (mínimo 10 caracteres)
+          <input id="cfg-senha" type="password" autocomplete="new-password">
+        </label>
+        <label>Repita a senha
+          <input id="cfg-senha2" type="password" autocomplete="new-password">
+        </label>
+        <p class="discreto">Use a mesma senha no computador (Configurações → Celular). Se esquecer a senha, o computador não
+          consegue abrir as ideias enviadas; as cópias neste celular continuam legíveis.</p>
+        <div class="config-botoes">
+          <button id="btn-cfg-salvar" class="botao-principal" type="submit">Salvar e testar</button>
+          <button id="btn-cfg-cancelar" class="botao" type="button">Cancelar</button>
+        </div>
+        <button id="btn-cfg-remover" class="botao-texto perigo-texto" type="button" hidden>Remover configuração deste celular</button>
+        <div id="cfg-resultado" class="resultado" role="status"></div>
+      </form>
+    </section>
+
     <section class="lista">
       <div class="lista-topo">
         <h2>Suas ideias</h2>
@@ -59,7 +91,7 @@
       <h2>Neste aparelho</h2>
       <div id="info-aparelho" class="discreto"></div>
       <button id="btn-exportar" class="botao" type="button">Exportar todas as ideias</button>
-      <p class="discreto">As ideias ficam guardadas só neste celular até a sincronização com o computador (em breve).
+      <p class="discreto">A cópia de cada ideia continua neste celular mesmo depois de sincronizada.
         <b>Pendente</b> = só no celular · <b>Enviada</b> = a caminho do computador · <b>No cérebro</b> = já está no Obsidian.</p>
     </section>
   </main>
@@ -70,6 +102,8 @@
   </div>
 
   <script src="armazenamento.js"></script>
+  <script src="cripto.js"></script>
+  <script src="sincronizar.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
