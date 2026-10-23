@@ -185,6 +185,8 @@
 
   // ---------- funcionamento offline (service worker) ----------
   if ('serviceWorker' in navigator) {
+    // Na primeira visita não há versão anterior: ativar o modo offline não deve recarregar a tela.
+    const tinhaVersao = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').then((reg) => {
       const avisar = (sw) => { if (sw && navigator.serviceWorker.controller) $('atualizacao').hidden = false; };
       if (reg.waiting) avisar(reg.waiting);
@@ -196,7 +198,7 @@
     }).catch(() => {});
     let recarregando = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (recarregando) return;
+      if (recarregando || !tinhaVersao) return;
       recarregando = true;
       location.reload(); // o rascunho fica guardado, nada se perde
     });
