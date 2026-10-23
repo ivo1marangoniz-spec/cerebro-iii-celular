@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cérebro III">
+  <link rel="apple-touch-icon" href="icones/icone-180.png">
+  <link rel="icon" href="icones/icone-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Cérebro III</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <img class="logo" src="icones/icone-192.png" alt="">
+    <div>
+      <div class="marca">Cérebro III</div>
+      <div class="sub">Caixa de ideias</div>
+    </div>
+    <span id="pendentes" class="pendentes" hidden></span>
+  </header>
+
+  <main>
+    <!-- Aviso: no iPhone, use pelo ícone da Tela de Início (o Safari guarda os dados separados) -->
+    <div id="aviso-instalar" class="aviso" hidden>
+      <strong>Instale para usar sem internet.</strong>
+      No Safari, toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.
+      Use sempre pelo ícone: as ideias salvas aqui no Safari ficam separadas das do app instalado.
+      <button id="btn-aviso-fechar" class="botao-texto" type="button">Entendi</button>
+    </div>
+
+    <section class="captura">
+      <textarea id="entrada" rows="5" placeholder="Escreva sua ideia…" autocomplete="off" autocapitalize="sentences"></textarea>
+      <div class="captura-barra">
+        <span id="contador" class="discreto"></span>
+        <button id="btn-salvar" class="botao-principal" type="button">Salvar ideia</button>
+      </div>
+      <div id="resultado" class="resultado" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="lista">
+      <div class="lista-topo">
+        <h2>Suas ideias</h2>
+        <div class="filtros" role="tablist">
+          <button class="filtro ativo" data-filtro="todas" type="button">Todas</button>
+          <button class="filtro" data-filtro="pendente" type="button">Pendentes</button>
+          <button class="filtro" data-filtro="enviadas" type="button">Enviadas</button>
+        </div>
+      </div>
+      <div id="ideias" class="ideias"></div>
+    </section>
+
+    <section class="aparelho">
+      <h2>Neste aparelho</h2>
+      <div id="info-aparelho" class="discreto"></div>
+      <button id="btn-exportar" class="botao" type="button">Exportar todas as ideias</button>
+      <p class="discreto">As ideias ficam guardadas só neste celular até a sincronização com o computador (em breve).
+        <b>Pendente</b> = só no celular · <b>Enviada</b> = a caminho do computador · <b>No cérebro</b> = já está no Obsidian.</p>
+    </section>
+  </main>
+
+  <div id="atualizacao" class="atualizacao" hidden>
+    Nova versão do app disponível.
+    <button id="btn-atualizar" class="botao-texto" type="button">Atualizar</button>
+  </div>
+
+  <script src="armazenamento.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
