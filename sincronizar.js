@@ -156,7 +156,8 @@ window.Sinc = (() => {
     const ok = r && r.v === 1 && typeof r.geradoEm === 'string' && Array.isArray(r.metas) && r.metas.length <= 100
       && r.metas.every((m) => typeof m.titulo === 'string' && ['foco', 'ativa'].includes(m.situacao)
         && Number.isInteger(m.feitas) && Number.isInteger(m.total)
-        && (m.proxima === null || (Number.isInteger(m.proxima?.numero) && typeof m.proxima?.titulo === 'string')));
+        && (m.proxima === null || (Number.isInteger(m.proxima?.numero) && typeof m.proxima?.titulo === 'string'
+          && (m.proxima.comoFazer === undefined || (typeof m.proxima.comoFazer === 'string' && m.proxima.comoFazer.length <= 2000)))));
     if (!ok) throw new Error('O painel de metas veio num formato inesperado.');
     return r;
   }

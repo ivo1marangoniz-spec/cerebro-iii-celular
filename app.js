@@ -283,11 +283,31 @@
     caixa.append(barra, el('span', 'progresso-numero', `${m.feitas}/${m.total}`));
     return caixa;
   }
+  // Próxima tarefa: tocar mostra os passos do "como fazer" (vindos do computador).
+  const passosAbertos = new Set(); // títulos das metas com os passos abertos
+  const formatarPassos = (t) => t.replace(/\s+(?=\d+[).]\s)/g, '\n').trim(); // "1) … 2) …" vira uma linha por passo
   const linhaProxima = (m) => {
-    const p = el('div', 'meta-proxima');
-    if (m.proxima) p.append(el('span', 'rotulo-suave', 'Próxima: '), document.createTextNode(`${m.proxima.numero}. ${m.proxima.titulo}`));
-    else p.textContent = m.total ? 'Todas as tarefas feitas.' : 'Ainda sem tarefas.';
-    return p;
+    if (!m.proxima) return el('div', 'meta-proxima', m.total ? 'Todas as tarefas feitas.' : 'Ainda sem tarefas.');
+    const caixa = el('div', 'meta-proxima-caixa');
+    const temPassos = !!m.proxima.comoFazer;
+    const aberto = passosAbertos.has(m.titulo);
+    const linha = el(temPassos ? 'button' : 'div', `meta-proxima${temPassos ? ' com-passos' : ''}`);
+    const texto = el('span', 'meta-proxima-texto');
+    texto.append(el('span', 'rotulo-suave', 'Próxima: '), document.createTextNode(`${m.proxima.numero}. ${m.proxima.titulo}`));
+    linha.append(texto);
+    if (temPassos) {
+      linha.type = 'button';
+      linha.setAttribute('aria-expanded', String(aberto));
+      linha.append(el('span', 'passos-dica', aberto ? 'Esconder passos' : 'Ver passos'));
+      linha.onclick = (e) => {
+        e.stopPropagation();
+        if (aberto) passosAbertos.delete(m.titulo); else passosAbertos.add(m.titulo);
+        renderMetas();
+      };
+    }
+    caixa.append(linha);
+    if (temPassos && aberto) caixa.append(el('div', 'passos', formatarPassos(m.proxima.comoFazer)));
+    return caixa;
   };
   function renderMetas() {
     const painel = S.painelGuardado();
@@ -330,9 +350,12 @@
     if (!ativas.length) { caixa.append(el('div', 'vazio-bloco', 'Nenhuma meta ativa.')); return; }
     const lista = el('div', 'metas-lista');
     ativas.forEach((m, i) => {
-      const item = el('button', `meta-item${metasAberta === i ? ' aberta' : ''}`);
-      item.type = 'button';
+      // div com papel de botão: dentro dela fica o botão "Ver passos" (botão dentro de botão não é permitido)
+      const item = el('div', `meta-item${metasAberta === i ? ' aberta' : ''}`);
+      item.setAttribute('role', 'button');
+      item.tabIndex = 0;
       item.setAttribute('aria-expanded', String(metasAberta === i));
+      item.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.onclick(); } };
       const topo = el('div', 'meta-item-topo');
       topo.append(el('span', 'meta-titulo', m.titulo), el('span', 'meta-seta', '›'));
       item.append(topo, barraProgresso(m));

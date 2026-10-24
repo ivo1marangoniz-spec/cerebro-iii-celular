@@ -382,3 +382,12 @@ button[aria-busy="true"]::after {
 .meta-item.aberta .meta-seta { transform: rotate(90deg); }
 .vazio-bloco { background: var(--superficie); border-radius: var(--raio-g); padding: 18px; color: var(--texto-2); font-size: 15px; line-height: 1.5; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .botao-largo { width: 100%; min-height: 48px; }
+
+/* Próxima tarefa com os passos do "como fazer" */
+.meta-proxima-caixa { display: flex; flex-direction: column; gap: 8px; }
+.meta-proxima.com-passos { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; text-align: left; border: none; background: none; padding: 0; color: var(--texto); font: inherit; font-size: 15px; line-height: 1.45; }
+.passos-dica { font-size: 13px; font-weight: 600; color: var(--vermelho); }
+.meta-proxima.com-passos:active .passos-dica { opacity: 0.6; }
+.passos { white-space: pre-wrap; font-size: 15px; line-height: 1.55; color: var(--texto); background: rgba(0, 0, 0, 0.22); border-radius: var(--raio-m); padding: 12px 14px; box-shadow: inset 0 0 0 0.5px var(--linha); animation: entrar var(--rapido) var(--curva); }
+.meta-item { cursor: pointer; }
+.meta-item:focus-visible { outline: 2px solid var(--vermelho); outline-offset: -2px; }
