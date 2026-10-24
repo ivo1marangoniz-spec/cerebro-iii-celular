@@ -69,7 +69,8 @@ window.Sinc = (() => {
     gravar('sinc-token', token);
     gravar('sinc-senha', senha);
   }
-  function apagarConfig() { gravar('sinc-repo', ''); gravar('sinc-token', ''); gravar('sinc-senha', ''); }
+  // Remover a configuração também apaga a cópia do painel de metas guardada aqui.
+  function apagarConfig() { for (const k of ['sinc-repo', 'sinc-token', 'sinc-senha', 'painel-cache', 'painel-baixado']) gravar(k, ''); }
 
   // Converte em partes: passar milhares de bytes de uma vez estoura o limite do Safari.
   function b64(texto) {
@@ -149,5 +150,33 @@ window.Sinc = (() => {
     return resumo;
   }
 
-  return { config, configurado, salvarConfig, apagarConfig, testar, sincronizar, ocupado, ultima: () => ler('sinc-ultima'), SENHA_MIN };
+  // ---------- painel de metas (o PC publica em painel/metas.json, trancado com a mesma senha) ----------
+  // A última versão aberta fica guardada neste aparelho: a aba Metas funciona sem internet e com o PC desligado.
+  function validarResumo(r) {
+    const ok = r && r.v === 1 && typeof r.geradoEm === 'string' && Array.isArray(r.metas) && r.metas.length <= 100
+      && r.metas.every((m) => typeof m.titulo === 'string' && ['foco', 'ativa'].includes(m.situacao)
+        && Number.isInteger(m.feitas) && Number.isInteger(m.total)
+        && (m.proxima === null || (Number.isInteger(m.proxima?.numero) && typeof m.proxima?.titulo === 'string')));
+    if (!ok) throw new Error('O painel de metas veio num formato inesperado.');
+    return r;
+  }
+  function painelGuardado() {
+    try { return JSON.parse(ler('painel-cache') || 'null'); } catch { return null; }
+  }
+  async function baixarPainel() {
+    if (!configurado()) return { semConfig: true };
+    if (!navigator.onLine) return { offline: true };
+    const { repo, senha } = config();
+    let r;
+    try { r = await chamar('GET', `/repos/${repo}/contents/painel/metas.json`); } catch { return { offline: true }; }
+    if (r.status === 404) return { semPainel: true };
+    if (r.status !== 200 || typeof r.dados?.content !== 'string') throw erroHttp(r);
+    const bytes = Uint8Array.from(atob(r.dados.content.replace(/\s/g, '')), (c) => c.charCodeAt(0));
+    const resumo = validarResumo(await C.abrirPainel(JSON.parse(new TextDecoder().decode(bytes)), senha));
+    gravar('painel-cache', JSON.stringify(resumo));
+    gravar('painel-baixado', A.isoLocal());
+    return { resumo };
+  }
+
+  return { config, configurado, salvarConfig, apagarConfig, testar, sincronizar, ocupado, ultima: () => ler('sinc-ultima'), SENHA_MIN, baixarPainel, painelGuardado };
 })();

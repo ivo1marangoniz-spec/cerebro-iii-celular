@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com">
-  <meta name="theme-color" content="#1a1a1a">
+  <meta name="theme-color" content="#121212">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,87 +16,135 @@
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-  <header class="topo">
-    <img class="logo" src="icones/icone-192.png" alt="">
-    <div>
-      <div class="marca">Cérebro III</div>
-      <div class="sub">Caixa de ideias</div>
-    </div>
-    <span id="pendentes" class="pendentes" hidden></span>
-  </header>
+  <!-- Desfoque sob a barra de status do iPhone (o conteúdo passa por baixo e some aos poucos) -->
+  <div class="veu-topo" aria-hidden="true"></div>
 
   <main>
-    <!-- Aviso: no iPhone, use pelo ícone da Tela de Início (o Safari guarda os dados separados) -->
-    <div id="aviso-instalar" class="aviso" hidden>
-      <strong>Instale para usar sem internet.</strong>
-      No Safari, toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.
-      Use sempre pelo ícone: as ideias salvas aqui no Safari ficam separadas das do app instalado.
-      <button id="btn-aviso-fechar" class="botao-texto" type="button">Entendi</button>
-    </div>
-
-    <section class="captura">
-      <textarea id="entrada" rows="5" placeholder="Escreva sua ideia…" autocomplete="off" autocapitalize="sentences"></textarea>
-      <div class="captura-barra">
-        <span id="contador" class="discreto"></span>
-        <button id="btn-salvar" class="botao-principal" type="button">Salvar ideia</button>
+    <!-- ===== Aba Metas (só leitura; o PC publica um resumo trancado com a senha das ideias) ===== -->
+    <section id="aba-metas" class="aba-tela" aria-labelledby="titulo-metas" hidden>
+      <header class="cabeca">
+        <div class="cabeca-marca">Cérebro III</div>
+        <h1 id="titulo-metas">Metas</h1>
+      </header>
+      <div class="metas-status">
+        <span id="metas-atualizado" class="sinc-status"></span>
+        <button id="btn-metas-atualizar" class="botao" type="button">Atualizar</button>
       </div>
-      <div id="resultado" class="resultado" role="status" aria-live="polite"></div>
+      <div id="metas-aviso" class="aviso-alerta" role="status" hidden></div>
+      <div id="metas-conteudo" class="metas-conteudo"></div>
+      <button id="btn-metas-ideia" class="botao botao-largo" type="button">Tive uma ideia</button>
+      <p class="grupo-rodape">Só leitura. Para mudar as metas, use o app no computador.</p>
     </section>
 
-    <section class="sinc">
+    <!-- ===== Aba Ideias ===== -->
+    <section id="aba-ideias" class="aba-tela" aria-labelledby="titulo-ideias">
+      <header class="cabeca">
+        <div class="cabeca-marca">Cérebro III</div>
+        <h1 id="titulo-ideias">Ideias</h1>
+      </header>
+
+      <!-- Aviso: no iPhone, use pelo ícone da Tela de Início (o Safari guarda os dados separados) -->
+      <div id="aviso-instalar" class="aviso" hidden>
+        <strong>Instale para usar sem internet.</strong>
+        No Safari, toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.
+        Use sempre pelo ícone: as ideias salvas aqui no Safari ficam separadas das do app instalado.
+        <button id="btn-aviso-fechar" class="botao-texto" type="button">Entendi</button>
+      </div>
+
+      <div class="captura">
+        <textarea id="entrada" rows="5" placeholder="Escreva sua ideia…" autocomplete="off" autocapitalize="sentences" aria-label="Sua ideia"></textarea>
+        <div class="captura-barra">
+          <span id="contador" class="discreto"></span>
+          <button id="btn-salvar" class="botao-principal" type="button">Salvar ideia</button>
+        </div>
+        <div id="resultado" class="resultado" role="status" aria-live="polite"></div>
+      </div>
+
       <div class="sinc-linha">
         <span id="sinc-status" class="sinc-status"></span>
         <button id="btn-enviar" class="botao" type="button">Enviar agora</button>
       </div>
-      <button id="btn-config" class="botao-texto" type="button">Configurar sincronização</button>
-      <form id="config" class="config" hidden autocomplete="off">
-        <p class="discreto">As ideias saem do celular <b>criptografadas</b> com a sua senha e vão para o seu repositório
-          <b>privado</b> no GitHub. O computador busca lá e grava no Obsidian. Sem a senha, ninguém lê o conteúdo.</p>
-        <label>Repositório (usuário/nome)
-          <input id="cfg-repo" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="usuario/cerebro-iii-ideias">
-        </label>
-        <label>Chave de acesso do GitHub (fine-grained token)
-          <input id="cfg-token" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="github_pat_…">
-        </label>
-        <label>Senha da criptografia (mínimo 10 caracteres)
-          <input id="cfg-senha" type="password" autocomplete="new-password">
-        </label>
-        <label>Repita a senha
-          <input id="cfg-senha2" type="password" autocomplete="new-password">
-        </label>
-        <p class="discreto">Use a mesma senha no computador (Configurações → Celular). Se esquecer a senha, o computador não
-          consegue abrir as ideias enviadas; as cópias neste celular continuam legíveis.</p>
-        <div class="config-botoes">
-          <button id="btn-cfg-salvar" class="botao-principal" type="submit">Salvar e testar</button>
-          <button id="btn-cfg-cancelar" class="botao" type="button">Cancelar</button>
-        </div>
-        <button id="btn-cfg-remover" class="botao-texto perigo-texto" type="button" hidden>Remover configuração deste celular</button>
-        <div id="cfg-resultado" class="resultado" role="status"></div>
-      </form>
-    </section>
 
-    <section class="lista">
-      <div class="lista-topo">
-        <h2>Suas ideias</h2>
-        <div class="filtros" role="tablist">
-          <button class="filtro ativo" data-filtro="todas" type="button">Todas</button>
-          <button class="filtro" data-filtro="pendente" type="button">Pendentes</button>
-          <button class="filtro" data-filtro="enviadas" type="button">Enviadas</button>
+      <div class="lista">
+        <div class="lista-topo">
+          <h2>Suas ideias</h2>
+          <div class="filtros" role="tablist" aria-label="Filtrar ideias">
+            <button class="filtro ativo" data-filtro="todas" type="button">Todas</button>
+            <button class="filtro" data-filtro="pendente" type="button">Pendentes</button>
+            <button class="filtro" data-filtro="enviadas" type="button">Enviadas</button>
+          </div>
         </div>
+        <div id="ideias" class="ideias"></div>
       </div>
-      <div id="ideias" class="ideias"></div>
     </section>
 
-    <section class="aparelho">
-      <h2>Neste aparelho</h2>
-      <div id="info-aparelho" class="discreto"></div>
-      <button id="btn-exportar" class="botao" type="button">Exportar todas as ideias</button>
-      <p class="discreto">A cópia de cada ideia continua neste celular mesmo depois de sincronizada.
+    <!-- ===== Aba Ajustes ===== -->
+    <section id="aba-ajustes" class="aba-tela" aria-labelledby="titulo-ajustes" hidden>
+      <header class="cabeca">
+        <div class="cabeca-marca">Cérebro III</div>
+        <h1 id="titulo-ajustes">Ajustes</h1>
+      </header>
+
+      <h2 class="grupo-titulo">Sincronização</h2>
+      <div class="grupo">
+        <p class="grupo-texto">As ideias saem do celular <b>criptografadas</b> com a sua senha e vão para o seu repositório
+          <b>privado</b> no GitHub. O computador busca lá e grava no Obsidian. Sem a senha, ninguém lê o conteúdo.</p>
+        <button id="btn-config" class="botao" type="button">Configurar sincronização</button>
+        <form id="config" class="config" hidden autocomplete="off">
+          <label>Repositório (usuário/nome)
+            <input id="cfg-repo" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="usuario/cerebro-iii-ideias">
+          </label>
+          <label>Chave de acesso do GitHub (fine-grained token)
+            <input id="cfg-token" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="github_pat_…">
+          </label>
+          <label>Senha da criptografia (mínimo 10 caracteres)
+            <input id="cfg-senha" type="password" autocomplete="new-password">
+          </label>
+          <label>Repita a senha
+            <input id="cfg-senha2" type="password" autocomplete="new-password">
+          </label>
+          <p class="discreto">Use a mesma senha no computador (Configurações → Celular). Se esquecer a senha, o computador não
+            consegue abrir as ideias enviadas; as cópias neste celular continuam legíveis.</p>
+          <div class="config-botoes">
+            <button id="btn-cfg-salvar" class="botao-principal" type="submit">Salvar e testar</button>
+            <button id="btn-cfg-cancelar" class="botao" type="button">Cancelar</button>
+          </div>
+          <button id="btn-cfg-remover" class="botao-texto perigo-texto" type="button" hidden>Remover configuração deste celular</button>
+          <div id="cfg-resultado" class="resultado" role="status"></div>
+        </form>
+      </div>
+
+      <h2 class="grupo-titulo">Neste aparelho</h2>
+      <div class="grupo">
+        <div id="info-aparelho" class="grupo-texto"></div>
+        <button id="btn-exportar" class="botao" type="button">Exportar todas as ideias</button>
+      </div>
+      <p class="grupo-rodape">A cópia de cada ideia continua neste celular mesmo depois de sincronizada.
         <b>Pendente</b> = só no celular · <b>Enviada</b> = a caminho do computador · <b>No cérebro</b> = já está no Obsidian.</p>
     </section>
   </main>
 
-  <div id="atualizacao" class="atualizacao" hidden>
+  <!-- Desfoque acima da barra de abas -->
+  <div class="veu-baixo" aria-hidden="true"></div>
+
+  <!-- Barra de abas flutuante (vidro) e botão de nova ideia -->
+  <nav class="abas vidro" aria-label="Seções">
+    <button class="aba" data-aba="metas" type="button" aria-label="Metas">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/></svg>
+    </button>
+    <button class="aba" data-aba="ideias" type="button" aria-label="Ideias">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>
+      <span id="pendentes" class="selo" hidden></span>
+    </button>
+    <button class="aba" data-aba="ajustes" type="button" aria-label="Ajustes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+    </button>
+  </nav>
+  <button id="btn-nova" class="botao-flutuante vidro" type="button" aria-label="Nova ideia">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <div id="atualizacao" class="atualizacao vidro" hidden>
     Nova versão do app disponível.
     <button id="btn-atualizar" class="botao-texto" type="button">Atualizar</button>
   </div>

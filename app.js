@@ -40,6 +40,7 @@
     const texto = entrada.value;
     const botao = $('btn-salvar');
     botao.disabled = true;
+    botao.setAttribute('aria-busy', 'true');
     try {
       await A.salvar(texto);
       // Só limpa se o texto não mudou enquanto salvava.
@@ -53,6 +54,7 @@
       mostrarResultado(`Não foi possível salvar: ${err.message} Seu texto continua no campo.`, true);
     }
     botao.disabled = false;
+    botao.removeAttribute('aria-busy');
   }
   $('btn-salvar').onclick = salvar;
   entrada.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); salvar(); } });
@@ -85,8 +87,10 @@
     }
     for (const ideia of lista) caixa.append(cartao(ideia));
     const pendentes = ideias.filter((i) => i.situacao === 'pendente').length;
+    // Selo no ícone da aba Ideias (número de pendentes)
     $('pendentes').hidden = !pendentes;
-    $('pendentes').textContent = `${pendentes} pendente${pendentes > 1 ? 's' : ''}`;
+    $('pendentes').textContent = pendentes > 99 ? '99+' : String(pendentes);
+    document.querySelector('.aba[data-aba="ideias"]').setAttribute('aria-label', pendentes ? `Ideias, ${pendentes} pendente${pendentes > 1 ? 's' : ''}` : 'Ideias');
   }
 
   function cartao(ideia) {
@@ -191,6 +195,7 @@
     st.classList.remove('erro');
     $('btn-enviar').hidden = !S.configurado();
     $('btn-enviar').disabled = S.ocupado();
+    $('btn-enviar').toggleAttribute('aria-busy', S.ocupado());
     $('btn-config').textContent = S.configurado() ? 'Alterar configuração' : 'Configurar sincronização';
     if (!S.configurado()) { st.textContent = 'Sincronização não configurada: as ideias ficam só neste celular.'; return; }
     if (S.ocupado()) { st.textContent = 'Enviando…'; return; }
@@ -242,16 +247,19 @@
     try {
       S.salvarConfig({ repo: $('cfg-repo').value, token: $('cfg-token').value || atual.token, senha });
       $('cfg-resultado').textContent = 'Testando a conexão…';
+      $('btn-cfg-salvar').setAttribute('aria-busy', 'true');
       await S.testar();
       abrirConfig(false);
       ultimoErro = '';
       mostrarResultado('Sincronização configurada.');
       sincronizarAgora();
+      carregarMetas();
     } catch (err) {
       // Teste falhou: volta à configuração anterior (se havia) para não deixar o envio quebrado.
       if (anterior.repo && anterior.token && anterior.senha) S.salvarConfig(anterior); else S.apagarConfig();
       $('cfg-resultado').textContent = err.message === 'Failed to fetch' ? 'Sem conexão com o GitHub. Tente de novo com internet.' : err.message;
     }
+    $('btn-cfg-salvar').removeAttribute('aria-busy');
     renderSinc();
   });
   $('btn-cfg-remover').onclick = () => {
@@ -260,6 +268,117 @@
     abrirConfig(false);
     renderSinc();
   };
+
+  // ---------- aba Metas (resumo que o PC publica trancado; a última versão fica guardada aqui) ----------
+  const UM_DIA = 24 * 60 * 60 * 1000;
+  let metasAberta = null;   // índice da meta ativa expandida
+  let metasErro = '';
+  let semPainel = false;
+  function barraProgresso(m) {
+    const caixa = el('div', 'progresso');
+    const barra = el('div', 'progresso-barra');
+    const cheia = el('div', 'progresso-cheia');
+    cheia.style.width = `${m.total ? Math.round((100 * m.feitas) / m.total) : 0}%`;
+    barra.append(cheia);
+    caixa.append(barra, el('span', 'progresso-numero', `${m.feitas}/${m.total}`));
+    return caixa;
+  }
+  const linhaProxima = (m) => {
+    const p = el('div', 'meta-proxima');
+    if (m.proxima) p.append(el('span', 'rotulo-suave', 'Próxima: '), document.createTextNode(`${m.proxima.numero}. ${m.proxima.titulo}`));
+    else p.textContent = m.total ? 'Todas as tarefas feitas.' : 'Ainda sem tarefas.';
+    return p;
+  };
+  function renderMetas() {
+    const painel = S.painelGuardado();
+    const status = $('metas-atualizado');
+    const aviso = $('metas-aviso');
+    const caixa = $('metas-conteudo');
+    caixa.replaceChildren();
+    aviso.hidden = true;
+    status.classList.remove('erro');
+    $('btn-metas-atualizar').hidden = !S.configurado();
+    if (!S.configurado()) {
+      status.textContent = '';
+      const v = el('div', 'vazio-bloco');
+      const ir = el('button', 'botao', 'Abrir Ajustes');
+      ir.type = 'button';
+      ir.onclick = () => irParaAba('ajustes');
+      v.append(el('div', '', 'Configure a sincronização em Ajustes para ver suas metas aqui.'), ir);
+      caixa.append(v);
+      return;
+    }
+    status.textContent = painel ? `Atualizado em ${quando(painel.geradoEm)}` : '';
+    if (metasErro) { status.textContent = metasErro; status.classList.add('erro'); }
+    if (!painel) {
+      caixa.append(el('div', 'vazio-bloco', semPainel
+        ? 'O computador ainda não publicou as metas. No app do computador: Configurações → Celular → Ligar metas no celular.'
+        : 'Buscando as metas…'));
+      return;
+    }
+    if (Date.now() - Date.parse(painel.geradoEm) > UM_DIA) {
+      aviso.textContent = `Pode estar desatualizado: o computador não publica desde ${quando(painel.geradoEm)}.`;
+      aviso.hidden = false;
+    }
+    const foco = painel.metas.find((m) => m.situacao === 'foco');
+    const ativas = painel.metas.filter((m) => m.situacao === 'ativa');
+    const blocoFoco = el('div', 'meta-foco');
+    blocoFoco.append(el('div', 'rotulo-foco', 'Em foco'));
+    if (foco) blocoFoco.append(el('div', 'meta-titulo', foco.titulo), barraProgresso(foco), linhaProxima(foco));
+    else blocoFoco.append(el('div', 'meta-vazia', 'Nenhuma meta em foco.'));
+    caixa.append(blocoFoco, el('h2', 'grupo-titulo-metas', `Ativas${ativas.length ? ` (${ativas.length})` : ''}`));
+    if (!ativas.length) { caixa.append(el('div', 'vazio-bloco', 'Nenhuma meta ativa.')); return; }
+    const lista = el('div', 'metas-lista');
+    ativas.forEach((m, i) => {
+      const item = el('button', `meta-item${metasAberta === i ? ' aberta' : ''}`);
+      item.type = 'button';
+      item.setAttribute('aria-expanded', String(metasAberta === i));
+      const topo = el('div', 'meta-item-topo');
+      topo.append(el('span', 'meta-titulo', m.titulo), el('span', 'meta-seta', '›'));
+      item.append(topo, barraProgresso(m));
+      if (metasAberta === i) item.append(linhaProxima(m));
+      item.onclick = () => { metasAberta = metasAberta === i ? null : i; renderMetas(); };
+      lista.append(item);
+    });
+    caixa.append(lista);
+  }
+  let buscandoMetas = false;
+  async function carregarMetas() {
+    if (buscandoMetas) return;
+    buscandoMetas = true;
+    $('btn-metas-atualizar').setAttribute('aria-busy', 'true');
+    try {
+      const r = await S.baixarPainel();
+      semPainel = !!r.semPainel;
+      metasErro = r.offline ? (S.painelGuardado() ? 'Sem internet: mostrando a última versão guardada.' : 'Sem internet agora. As metas aparecem quando a conexão voltar.') : '';
+    } catch (err) {
+      metasErro = err.message === 'Failed to fetch' ? 'Sem conexão: mostrando a última versão guardada.' : err.message;
+    } finally {
+      buscandoMetas = false;
+      $('btn-metas-atualizar').removeAttribute('aria-busy');
+      renderMetas();
+    }
+  }
+  $('btn-metas-atualizar').onclick = carregarMetas;
+  $('btn-metas-ideia').onclick = () => { irParaAba('ideias'); entrada.focus(); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carregarMetas(); });
+  window.addEventListener('online', carregarMetas);
+
+  // ---------- abas (barra flutuante) e botão de nova ideia ----------
+  function irParaAba(nome) {
+    if (!['metas', 'ideias', 'ajustes'].includes(nome)) nome = 'metas';
+    for (const s of document.querySelectorAll('.aba-tela')) s.hidden = s.id !== `aba-${nome}`;
+    for (const b of document.querySelectorAll('.aba')) {
+      const ativa = b.dataset.aba === nome;
+      b.classList.toggle('ativa', ativa);
+      if (ativa) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    }
+    gravarPref('aba', nome);
+    window.scrollTo(0, 0);
+  }
+  for (const b of document.querySelectorAll('.aba')) b.onclick = () => irParaAba(b.dataset.aba);
+  $('btn-nova').onclick = () => { irParaAba('ideias'); entrada.focus(); };
+  irParaAba(lerPref('aba', 'metas'));
 
   // ---------- aviso de instalação (iPhone) ----------
   const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -289,5 +408,7 @@
 
   // ---------- início ----------
   A.pedirPersistencia().then((p) => { persistente = p; renderInfo(); });
+  renderMetas();
+  carregarMetas();
   carregar().then(sincronizarAgora);
 })();

@@ -9,12 +9,13 @@ window.Cripto = (() => {
 
   const paraB64 = (bytes) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); };
 
-  async function chave(senha, sal) {
+  async function chave(senha, sal, uso = 'encrypt', iteracoes = ITERACOES) {
     const base = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey(
-      { name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: ITERACOES },
-      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+      { name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: iteracoes },
+      base, { name: 'AES-GCM', length: 256 }, false, [uso]);
   }
+  const deB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
   // Devolve o "envelope" (JSON) que vai para o repositório. Só a identificação fica legível.
   async function criptografar(ideia, senha) {
@@ -32,5 +33,25 @@ window.Cripto = (() => {
     };
   }
 
-  return { criptografar };
+  // Abre o painel de metas que o PC trancou com a mesma senha (src/painel-celular.js). O arquivo vem do GitHub,
+  // então é tratado como não confiável: formato e tamanhos são conferidos antes de abrir.
+  async function abrirPainel(env, senha) {
+    const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+    const it = env?.kdf?.iteracoes;
+    if (env?.formato !== 'cerebro-iii-painel' || env.v !== 1 || env.id !== 'painel-metas' || env.cifra !== 'AES-256-GCM'
+      || env.kdf?.nome !== 'PBKDF2-SHA256' || !Number.isInteger(it) || it < 100000 || it > 2000000
+      || ![env.iv, env.kdf.sal, env.dados].every((x) => typeof x === 'string' && B64.test(x)) || env.dados.length > 300000) {
+      throw new Error('O painel de metas veio num formato desconhecido.');
+    }
+    let claro;
+    try {
+      claro = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(env.iv), additionalData: enc.encode(env.id) },
+        await chave(senha, deB64(env.kdf.sal), 'decrypt', it), deB64(env.dados));
+    } catch {
+      throw new Error('Não consegui abrir o painel: a senha deste celular é diferente da do computador.');
+    }
+    return JSON.parse(new TextDecoder().decode(claro));
+  }
+
+  return { criptografar, abrirPainel };
 })();
