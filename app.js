@@ -329,6 +329,7 @@
       return;
     }
     status.textContent = painel ? `Atualizado em ${quando(painel.geradoEm)}` : '';
+    if (avisoAtualizar) status.textContent = avisoAtualizar;
     if (metasErro) { status.textContent = metasErro; status.classList.add('erro'); }
     if (!painel) {
       caixa.append(el('div', 'vazio-bloco', semPainel
@@ -366,13 +367,17 @@
     caixa.append(lista);
   }
   let buscandoMetas = false;
+  let avisoAtualizar = ''; // mensagem do botão Atualizar quando não há nada novo
   async function carregarMetas() {
     if (buscandoMetas) return;
+    avisoAtualizar = '';
     buscandoMetas = true;
     $('btn-metas-atualizar').setAttribute('aria-busy', 'true');
+    const anterior = S.painelGuardado()?.geradoEm;
     try {
       const r = await S.baixarPainel();
       semPainel = !!r.semPainel;
+      if (r.resumo && r.resumo.geradoEm === anterior) avisoAtualizar = `Nada novo: o computador publicou pela última vez em ${quando(anterior)}. Ele publica quando algo muda (e confere a cada 5 minutos enquanto estiver aberto).`;
       metasErro = r.offline ? (S.painelGuardado() ? 'Sem internet: mostrando a última versão guardada.' : 'Sem internet agora. As metas aparecem quando a conexão voltar.') : '';
     } catch (err) {
       metasErro = err.message === 'Failed to fetch' ? 'Sem conexão: mostrando a última versão guardada.' : err.message;
@@ -414,7 +419,7 @@
     caixa.replaceChildren();
     for (const b of document.querySelectorAll('.agenda-vistas .filtro')) b.classList.toggle('ativo', b.dataset.vista === agendaVista);
     $('btn-agenda-atualizar').hidden = !S.configurado();
-    $('agenda-atualizado').textContent = painel ? `Atualizado em ${quando(painel.geradoEm)}` : '';
+    $('agenda-atualizado').textContent = avisoAtualizar || (painel ? `Atualizado em ${quando(painel.geradoEm)}` : '');
     if (!S.configurado()) { caixa.append(el('div', 'vazio-bloco', 'Configure a sincronização em Ajustes para ver a agenda aqui.')); return; }
     if (!painel) { caixa.append(el('div', 'vazio-bloco', 'Buscando a agenda…')); return; }
     if (!painel.agenda) { caixa.append(el('div', 'vazio-bloco', 'O Google Agenda não está ligado no computador (Configurações → Google Agenda).')); return; }
