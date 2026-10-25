@@ -62,10 +62,10 @@
   // ---------- lista ----------
   function definirFiltro(f) {
     filtro = f;
-    for (const b of document.querySelectorAll('.filtro')) b.classList.toggle('ativo', b.dataset.filtro === f);
+    for (const b of document.querySelectorAll('.lista .filtro')) b.classList.toggle('ativo', b.dataset.filtro === f);
     renderLista();
   }
-  for (const b of document.querySelectorAll('.filtro')) b.onclick = () => definirFiltro(b.dataset.filtro);
+  for (const b of document.querySelectorAll('.lista .filtro')) b.onclick = () => definirFiltro(b.dataset.filtro);
 
   async function carregar() {
     try {
@@ -380,6 +380,7 @@
       buscandoMetas = false;
       $('btn-metas-atualizar').removeAttribute('aria-busy');
       renderMetas();
+      renderAgendaCel();
     }
   }
   $('btn-metas-atualizar').onclick = carregarMetas;
@@ -387,9 +388,56 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carregarMetas(); });
   window.addEventListener('online', carregarMetas);
 
+  // ---------- aba Agenda (do mesmo resumo trancado: hoje e os próximos 6 dias) ----------
+  let agendaVista = lerPref('agenda-vista', 'hoje') === 'semana' ? 'semana' : 'hoje';
+  const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const dois = (n) => String(n).padStart(2, '0');
+  const isoDia = (d) => `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
+  const horaDe = (iso) => (iso.length > 10 ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
+  const diasDe = (e) => {
+    if (!e.diaInteiro) return [isoDia(new Date(e.inicio))];
+    const out = []; const [a, m, d] = e.inicio.slice(0, 10).split('-').map(Number);
+    for (let x = new Date(a, m - 1, d); isoDia(x) < e.fim.slice(0, 10) && out.length < 31; x.setDate(x.getDate() + 1)) out.push(isoDia(x));
+    return out.length ? out : [e.inicio.slice(0, 10)];
+  };
+  function linhaEvento(e) {
+    const li = el('div', `agenda-linha${!e.diaInteiro && Date.parse(e.fim) < Date.now() ? ' passou' : ''}`);
+    const textos = el('div', 'agenda-linha-textos');
+    textos.append(el('div', 'agenda-linha-titulo', e.titulo));
+    if (e.local) textos.append(el('div', 'agenda-linha-local', e.local));
+    li.append(el('span', 'agenda-linha-hora', e.diaInteiro ? 'dia todo' : horaDe(e.inicio)), textos);
+    return li;
+  }
+  function renderAgendaCel() {
+    const painel = S.painelGuardado();
+    const caixa = $('agenda-conteudo');
+    caixa.replaceChildren();
+    for (const b of document.querySelectorAll('.agenda-vistas .filtro')) b.classList.toggle('ativo', b.dataset.vista === agendaVista);
+    $('btn-agenda-atualizar').hidden = !S.configurado();
+    $('agenda-atualizado').textContent = painel ? `Atualizado em ${quando(painel.geradoEm)}` : '';
+    if (!S.configurado()) { caixa.append(el('div', 'vazio-bloco', 'Configure a sincronização em Ajustes para ver a agenda aqui.')); return; }
+    if (!painel) { caixa.append(el('div', 'vazio-bloco', 'Buscando a agenda…')); return; }
+    if (!painel.agenda) { caixa.append(el('div', 'vazio-bloco', 'O Google Agenda não está ligado no computador (Configurações → Google Agenda).')); return; }
+    const porDia = new Map();
+    for (const e of painel.agenda) for (const d of diasDe(e)) { if (!porDia.has(d)) porDia.set(d, []); porDia.get(d).push(e); }
+    const hoje = new Date();
+    const dias = agendaVista === 'hoje' ? [hoje] : Array.from({ length: 7 }, (_, i) => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i));
+    for (const d of dias) {
+      const evs = porDia.get(isoDia(d)) || [];
+      const nome = `${d.toDateString() === hoje.toDateString() ? 'Hoje · ' : ''}${DIAS[d.getDay()]}, ${dois(d.getDate())}/${dois(d.getMonth() + 1)}`;
+      caixa.append(el('h2', `agenda-dia${d.toDateString() === hoje.toDateString() ? ' hoje' : ''}`, nome));
+      if (!evs.length) { caixa.append(el('div', 'agenda-livre', agendaVista === 'hoje' ? 'Nada na agenda hoje.' : 'Livre')); continue; }
+      const lista = el('div', 'metas-lista');
+      [...evs.filter((e) => e.diaInteiro), ...evs.filter((e) => !e.diaInteiro)].forEach((e) => lista.append(linhaEvento(e)));
+      caixa.append(lista);
+    }
+  }
+  for (const b of document.querySelectorAll('.agenda-vistas .filtro')) b.onclick = () => { agendaVista = b.dataset.vista; gravarPref('agenda-vista', agendaVista); renderAgendaCel(); };
+  $('btn-agenda-atualizar').onclick = carregarMetas;
+
   // ---------- abas (barra flutuante) e botão de nova ideia ----------
   function irParaAba(nome) {
-    if (!['metas', 'ideias', 'ajustes'].includes(nome)) nome = 'metas';
+    if (!['metas', 'agenda', 'ideias', 'ajustes'].includes(nome)) nome = 'metas';
     for (const s of document.querySelectorAll('.aba-tela')) s.hidden = s.id !== `aba-${nome}`;
     for (const b of document.querySelectorAll('.aba')) {
       const ativa = b.dataset.aba === nome;
@@ -432,6 +480,7 @@
   // ---------- início ----------
   A.pedirPersistencia().then((p) => { persistente = p; renderInfo(); });
   renderMetas();
+  renderAgendaCel();
   carregarMetas();
   carregar().then(sincronizarAgora);
 })();

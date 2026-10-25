@@ -1,6 +1,6 @@
 // Service worker: guarda os arquivos do app no celular para ele abrir SEM internet.
 // As ideias não passam por aqui (ficam no IndexedDB). Ao mudar qualquer arquivo do app, aumente VERSAO.
-const VERSAO = 'cerebro-iii-v9';
+const VERSAO = 'cerebro-iii-v10';
 const ARQUIVOS = [
   './',
   './index.html',

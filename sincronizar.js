@@ -158,7 +158,9 @@ window.Sinc = (() => {
         && Number.isInteger(m.feitas) && Number.isInteger(m.total)
         && (m.proxima === null || (Number.isInteger(m.proxima?.numero) && typeof m.proxima?.titulo === 'string'
           && (m.proxima.comoFazer === undefined || (typeof m.proxima.comoFazer === 'string' && m.proxima.comoFazer.length <= 2000)))));
-    if (!ok) throw new Error('O painel de metas veio num formato inesperado.');
+    const agendaOk = r.agenda === undefined || r.agenda === null || (Array.isArray(r.agenda) && r.agenda.length <= 150
+      && r.agenda.every((e) => typeof e.titulo === 'string' && typeof e.inicio === 'string' && typeof e.fim === 'string' && typeof e.diaInteiro === 'boolean'));
+    if (!ok || !agendaOk) throw new Error('O painel de metas veio num formato inesperado.');
     return r;
   }
   function painelGuardado() {
