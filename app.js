@@ -163,7 +163,7 @@
   // Gera um arquivo Markdown com todas as ideias (cópia de segurança manual).
   async function exportar() {
     if (!ideias.length) { mostrarResultado('Não há ideias para exportar.'); return; }
-    const linhas = ['# Ideias do Cérebro III (celular)', '', `Exportado em ${quando(A.isoLocal())}.`, ''];
+    const linhas = ['# Ideias do A.L.E.X. (celular)', '', `Exportado em ${quando(A.isoLocal())}.`, ''];
     for (const i of [...ideias].reverse()) {
       linhas.push(`## ${quando(i.capturado)} (${ROTULO[i.situacao] || i.situacao})`, '', i.texto, '', `<!-- id: ${i.id} -->`, '');
     }
@@ -171,7 +171,7 @@
     const arquivo = new File([linhas.join('\n')], nome, { type: 'text/markdown' });
     try {
       if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
-        await navigator.share({ files: [arquivo], title: 'Ideias do Cérebro III' });
+        await navigator.share({ files: [arquivo], title: 'Ideias do A.L.E.X.' });
         return;
       }
     } catch (err) {
@@ -271,7 +271,7 @@
 
   // ---------- aba Metas (resumo que o PC publica trancado; a última versão fica guardada aqui) ----------
   const UM_DIA = 24 * 60 * 60 * 1000;
-  let metasAberta = null;   // índice da meta ativa expandida
+  let metasAberta = null;   // título da meta expandida
   let metasErro = '';
   let semPainel = false;
   function barraProgresso(m) {
@@ -309,6 +309,45 @@
     if (temPassos && aberto) caixa.append(el('div', 'passos', formatarPassos(m.proxima.comoFazer)));
     return caixa;
   };
+  // Situação da meta, pelo celular: o pedido vai trancado com a senha e o computador aplica quando o A.L.E.X. abrir.
+  const SITUACOES = [['foco', 'Foco'], ['ativa', 'Ativa'], ['fila', 'Fila'], ['pausada', 'Pausada'], ['concluida', 'Concluída']];
+  function linhaSituacao(m) {
+    const pedido = S.pedidosPendentes().find((p) => p.meta === m.titulo);
+    const caixa = el('div', 'situacoes');
+    for (const [id, nome] of SITUACOES) {
+      const b = el('button', `situacao${m.situacao === id ? ' atual' : ''}${pedido?.situacao === id ? ' pedida' : ''}`, nome);
+      b.type = 'button';
+      b.disabled = m.situacao === id;
+      b.onclick = async (e) => {
+        e.stopPropagation();
+        S.pedirSituacao(m.titulo, id);
+        renderMetas();
+        await S.sincronizar();
+        renderMetas();
+      };
+      caixa.append(b);
+    }
+    if (pedido) {
+      const nome = SITUACOES.find(([id]) => id === pedido.situacao)[1];
+      caixa.append(el('div', 'situacao-aviso', `${pedido.enviado ? 'Pedido enviado' : 'Pedido guardado (sem internet)'}: ${nome}. O computador aplica quando o A.L.E.X. estiver aberto.`));
+    }
+    return caixa;
+  }
+  function itemMeta(m) {
+    const aberta = metasAberta === m.titulo;
+    // div com papel de botão: dentro dela ficam botões (botão dentro de botão não é permitido)
+    const item = el('div', `meta-item${aberta ? ' aberta' : ''}`);
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    item.setAttribute('aria-expanded', String(aberta));
+    item.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.onclick(); } };
+    const topo = el('div', 'meta-item-topo');
+    topo.append(el('span', 'meta-titulo', m.titulo), el('span', 'meta-seta', '›'));
+    item.append(topo, barraProgresso(m));
+    if (aberta) item.append(linhaProxima(m), linhaSituacao(m));
+    item.onclick = () => { metasAberta = aberta ? null : m.titulo; renderMetas(); };
+    return item;
+  }
   function renderMetas() {
     const painel = S.painelGuardado();
     const status = $('metas-atualizado');
@@ -337,34 +376,30 @@
         : 'Buscando as metas…'));
       return;
     }
+    S.limparPedidos(painel); // o que o computador já aplicou sai da lista de pedidos
     if (Date.now() - Date.parse(painel.geradoEm) > UM_DIA) {
       aviso.textContent = `Pode estar desatualizado: o computador não publica desde ${quando(painel.geradoEm)}.`;
       aviso.hidden = false;
     }
     const foco = painel.metas.find((m) => m.situacao === 'foco');
-    const ativas = painel.metas.filter((m) => m.situacao === 'ativa');
     const blocoFoco = el('div', 'meta-foco');
     blocoFoco.append(el('div', 'rotulo-foco', 'Em foco'));
-    if (foco) blocoFoco.append(el('div', 'meta-titulo', foco.titulo), barraProgresso(foco), linhaProxima(foco));
+    if (foco) blocoFoco.append(el('div', 'meta-titulo', foco.titulo), barraProgresso(foco), linhaProxima(foco), linhaSituacao(foco));
     else blocoFoco.append(el('div', 'meta-vazia', 'Nenhuma meta em foco.'));
-    caixa.append(blocoFoco, el('h2', 'grupo-titulo-metas', `Ativas${ativas.length ? ` (${ativas.length})` : ''}`));
-    if (!ativas.length) { caixa.append(el('div', 'vazio-bloco', 'Nenhuma meta ativa.')); return; }
-    const lista = el('div', 'metas-lista');
-    ativas.forEach((m, i) => {
-      // div com papel de botão: dentro dela fica o botão "Ver passos" (botão dentro de botão não é permitido)
-      const item = el('div', `meta-item${metasAberta === i ? ' aberta' : ''}`);
-      item.setAttribute('role', 'button');
-      item.tabIndex = 0;
-      item.setAttribute('aria-expanded', String(metasAberta === i));
-      item.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.onclick(); } };
-      const topo = el('div', 'meta-item-topo');
-      topo.append(el('span', 'meta-titulo', m.titulo), el('span', 'meta-seta', '›'));
-      item.append(topo, barraProgresso(m));
-      if (metasAberta === i) item.append(linhaProxima(m));
-      item.onclick = () => { metasAberta = metasAberta === i ? null : i; renderMetas(); };
-      lista.append(item);
-    });
-    caixa.append(lista);
+    caixa.append(blocoFoco);
+    const grupos = [['ativa', 'Ativas'], ['fila', 'Na fila'], ['pausada', 'Pausadas']];
+    let alguma = false;
+    for (const [sit, nome] of grupos) {
+      const doGrupo = painel.metas.filter((m) => m.situacao === sit);
+      if (!doGrupo.length && sit !== 'ativa') continue;
+      caixa.append(el('h2', 'grupo-titulo-metas', `${nome}${doGrupo.length ? ` (${doGrupo.length})` : ''}`));
+      if (!doGrupo.length) { caixa.append(el('div', 'vazio-bloco', 'Nenhuma meta ativa.')); continue; }
+      alguma = true;
+      const lista = el('div', 'metas-lista');
+      for (const m of doGrupo) lista.append(itemMeta(m));
+      caixa.append(lista);
+    }
+    if (!alguma && !foco) caixa.append(el('div', 'grupo-rodape', 'Toque numa meta para mudar a situação dela.'));
   }
   let buscandoMetas = false;
   let avisoAtualizar = ''; // mensagem do botão Atualizar quando não há nada novo

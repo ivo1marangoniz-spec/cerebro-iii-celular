@@ -70,7 +70,39 @@ window.Sinc = (() => {
     gravar('sinc-senha', senha);
   }
   // Remover a configuração também apaga a cópia do painel de metas guardada aqui.
-  function apagarConfig() { for (const k of ['sinc-repo', 'sinc-token', 'sinc-senha', 'painel-cache', 'painel-baixado']) gravar(k, ''); }
+  function apagarConfig() { for (const k of ['sinc-repo', 'sinc-token', 'sinc-senha', 'painel-cache', 'painel-baixado', 'pedidos-pendentes']) gravar(k, ''); }
+
+  // ---------- pedidos para o computador (mudar a situação de uma meta) ----------
+  // Ficam guardados aqui até subirem para pedidos/<id>.json (trancados com a mesma senha das ideias) e saem da lista
+  // quando o painel mostra a meta já na situação pedida.
+  const PASTA_PEDIDOS = 'pedidos';
+  function pedidosPendentes() { try { return JSON.parse(ler('pedidos-pendentes') || '[]'); } catch { return []; } }
+  const guardarPedidos = (l) => gravar('pedidos-pendentes', l.length ? JSON.stringify(l) : '');
+  function pedirSituacao(meta, situacao) {
+    const l = pedidosPendentes().filter((p) => p.meta !== meta);
+    l.push({ id: crypto.randomUUID(), meta, situacao, em: A.isoLocal(), enviado: false });
+    guardarPedidos(l);
+  }
+  function limparPedidos(painel) {
+    const l = pedidosPendentes().filter((p) => {
+      const m = painel.metas.find((x) => x.titulo === p.meta);
+      const feito = Date.parse(painel.geradoEm) > Date.parse(p.em) && (m ? m.situacao === p.situacao : p.situacao === 'concluida');
+      const velho = Date.now() - Date.parse(p.em) > 3 * 24 * 60 * 60 * 1000;
+      return !feito && !velho;
+    });
+    guardarPedidos(l);
+  }
+  async function enviarPedidos() {
+    const { repo, senha } = config();
+    const l = pedidosPendentes();
+    for (const p of l.filter((x) => !x.enviado)) {
+      const envelope = await C.criptografar({ id: p.id, texto: JSON.stringify({ tipo: 'situacao', meta: p.meta, situacao: p.situacao }), capturado: p.em }, senha);
+      const r = await chamar('PUT', `/repos/${repo}/contents/${PASTA_PEDIDOS}/${p.id}.json`, { message: `Pedido ${p.id}`, content: b64(JSON.stringify(envelope)) });
+      if (r.status !== 201 && r.status !== 200 && r.status !== 422) throw erroHttp(r);
+      p.enviado = true;
+    }
+    guardarPedidos(l);
+  }
 
   // Converte em partes: passar milhares de bytes de uma vez estoura o limite do Safari.
   function b64(texto) {
@@ -141,6 +173,8 @@ window.Sinc = (() => {
         await A.marcar(atual.id, 'enviada', { enviadaEm: A.isoLocal() });
         resumo.enviadas++;
       }
+      // 4. Pedidos para o computador (mudar a situação de uma meta).
+      await enviarPedidos();
       gravar('sinc-ultima', A.isoLocal());
     } catch (err) {
       resumo.erro = err.message === 'Failed to fetch' || err.name === 'TypeError' ? 'Sem conexão com o GitHub agora. As ideias continuam guardadas e serão enviadas depois.' : err.message;
@@ -154,7 +188,7 @@ window.Sinc = (() => {
   // A última versão aberta fica guardada neste aparelho: a aba Metas funciona sem internet e com o PC desligado.
   function validarResumo(r) {
     const ok = r && r.v === 1 && typeof r.geradoEm === 'string' && Array.isArray(r.metas) && r.metas.length <= 100
-      && r.metas.every((m) => typeof m.titulo === 'string' && ['foco', 'ativa'].includes(m.situacao)
+      && r.metas.every((m) => typeof m.titulo === 'string' && ['foco', 'ativa', 'fila', 'pausada'].includes(m.situacao)
         && Number.isInteger(m.feitas) && Number.isInteger(m.total)
         && (m.proxima === null || (Number.isInteger(m.proxima?.numero) && typeof m.proxima?.titulo === 'string'
           && (m.proxima.comoFazer === undefined || (typeof m.proxima.comoFazer === 'string' && m.proxima.comoFazer.length <= 2000)))));
@@ -181,5 +215,6 @@ window.Sinc = (() => {
     return { resumo };
   }
 
-  return { config, configurado, salvarConfig, apagarConfig, testar, sincronizar, ocupado, ultima: () => ler('sinc-ultima'), SENHA_MIN, baixarPainel, painelGuardado };
+  return { config, configurado, salvarConfig, apagarConfig, testar, sincronizar, ocupado, ultima: () => ler('sinc-ultima'), SENHA_MIN, baixarPainel, painelGuardado,
+    pedidosPendentes, pedirSituacao, limparPedidos };
 })();

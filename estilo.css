@@ -1,19 +1,22 @@
-/* App do celular do Cérebro III — linguagem visual inspirada no Liquid Glass do iOS.
+/* App do celular do A.L.E.X. — mesma linguagem do app do PC: fundo quase preto azulado e ciano de destaque.
    Regra: o conteúdo é limpo e sólido; o vidro fica só no que flutua (barra de abas, botão +, avisos, véus).
    Tudo sai dos tokens abaixo (cores, raios, espaços, vidro, sombras e movimento). Os tokens de cores, superfícies,
    vidro, raios e movimento são os mesmos de src/renderer/styles.css (app do PC): ao mudar um, mude o outro. */
 :root {
   /* Cores (as mesmas do app do computador) */
-  --fundo: #121212;
+  --fundo: #080b10;
   --superficie: rgba(255, 255, 255, 0.055);       /* conteúdo agrupado: sólido e discreto */
   --superficie-ativa: rgba(255, 255, 255, 0.085);
   --linha: rgba(255, 255, 255, 0.08);              /* separadores finos */
   --texto: #f5f5f7;
   --texto-2: rgba(235, 235, 245, 0.62);
   --texto-3: rgba(235, 235, 245, 0.38);
-  --vermelho: #e24b4a;
-  --vermelho-pressionado: #c93a39;
-  --vermelho-suave: rgba(226, 75, 74, 0.16);
+  /* Destaque (o nome "vermelho" ficou da versão antiga; hoje é o ciano do A.L.E.X.) */
+  --vermelho: #67e8f9;
+  --vermelho-pressionado: #38d3ea;
+  --vermelho-suave: rgba(103, 232, 249, 0.16);
+  --texto-no-destaque: #052129;
+  --erro: #ff8a89;
 
   /* Vidro (3 níveis: quanto mais importante, mais opaco) */
   --vidro-1: rgba(40, 40, 44, 0.42);
@@ -104,7 +107,7 @@ h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
 .discreto { color: var(--texto-3); font-size: 13px; }
 .resultado { min-height: 18px; font-size: 14px; color: var(--texto-2); }
 .resultado:empty { min-height: 0; }
-.resultado.falha { color: var(--vermelho); }
+.resultado.falha { color: var(--erro); }
 
 .aviso { background: var(--superficie); border-radius: var(--raio-g); padding: 16px 18px; font-size: 15px; line-height: 1.5; color: var(--texto-2); }
 .aviso strong { color: var(--texto); display: block; margin-bottom: 4px; font-weight: 600; }
@@ -119,10 +122,10 @@ h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
   border: none;
   border-radius: var(--raio-m);
   background: var(--vermelho);
-  color: #fff;
+  color: var(--texto-no-destaque);
   font-size: 17px;
   font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 18px rgba(226, 75, 74, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 18px rgba(103, 232, 249, 0.22);
 }
 .botao-principal:active { background: var(--vermelho-pressionado); transform: scale(0.97); }
 .botao {
@@ -172,7 +175,7 @@ button[aria-busy="true"]::after {
   transition: box-shadow var(--rapido);
 }
 #entrada::placeholder { color: var(--texto-3); }
-#entrada:focus { box-shadow: 0 0 0 2px var(--vermelho-suave), inset 0 0 0 0.5px rgba(226, 75, 74, 0.6); }
+#entrada:focus { box-shadow: 0 0 0 2px var(--vermelho-suave), inset 0 0 0 0.5px rgba(103, 232, 249, 0.6); }
 .captura-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .captura-barra .botao-principal { flex: 1; }
 .captura-barra .discreto:empty { display: none; }
@@ -180,7 +183,7 @@ button[aria-busy="true"]::after {
 /* ---------- sincronização (uma linha, sem caixa) ---------- */
 .sinc-linha { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: -6px; }
 .sinc-status { font-size: 14px; color: var(--texto-2); line-height: 1.4; }
-.sinc-status.erro { color: var(--vermelho); }
+.sinc-status.erro { color: var(--erro); }
 .sinc-linha .botao { flex-shrink: 0; min-height: 36px; padding: 0 16px; font-size: 14px; }
 
 /* ---------- lista (agrupada, separada por linhas finas) ---------- */
@@ -247,7 +250,7 @@ button[aria-busy="true"]::after {
 .config p { margin: 0; line-height: 1.5; }
 .config label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--texto-2); }
 .config input { font: 17px var(--fonte); color: var(--texto); background: rgba(0, 0, 0, 0.25); border: none; border-radius: var(--raio-p); padding: 12px 14px; outline: none; box-shadow: inset 0 0 0 0.5px var(--linha); }
-.config input:focus { box-shadow: 0 0 0 2px var(--vermelho-suave), inset 0 0 0 0.5px rgba(226, 75, 74, 0.6); }
+.config input:focus { box-shadow: 0 0 0 2px var(--vermelho-suave), inset 0 0 0 0.5px rgba(103, 232, 249, 0.6); }
 .config-botoes { display: flex; gap: 10px; flex-wrap: wrap; }
 .config-botoes .botao-principal { flex: 1; }
 .perigo-texto { color: var(--texto-3) !important; font-weight: 400 !important; align-self: flex-start; }
@@ -289,7 +292,7 @@ button[aria-busy="true"]::after {
   padding: 0 5px;
   border-radius: var(--raio-capsula);
   background: var(--vermelho);
-  color: #fff;
+  color: var(--texto-no-destaque);
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;
@@ -345,8 +348,8 @@ button[aria-busy="true"]::after {
 .meta-foco {
   border-radius: var(--raio-g);
   padding: 16px 18px;
-  background: linear-gradient(180deg, rgba(226, 75, 74, 0.13), rgba(226, 75, 74, 0.05));
-  box-shadow: inset 0 0 0 0.5px rgba(226, 75, 74, 0.45);
+  background: linear-gradient(180deg, rgba(103, 232, 249, 0.13), rgba(103, 232, 249, 0.05));
+  box-shadow: inset 0 0 0 0.5px rgba(103, 232, 249, 0.45);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -405,3 +408,14 @@ button[aria-busy="true"]::after {
 .agenda-linha-textos { flex: 1; min-width: 0; }
 .agenda-linha-titulo { font-size: 16px; line-height: 1.4; }
 .agenda-linha-local { font-size: 13px; color: var(--texto-3); }
+
+/* Situação da meta pelo celular (etapa 13). */
+.situacoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.situacao { min-height: 32px; padding: 0 12px; border-radius: var(--raio-capsula); border: 1px solid var(--linha); background: var(--superficie);
+  color: var(--texto-2); font-size: 13px; font-weight: 600; }
+.situacao.atual { color: var(--texto-no-destaque); background: var(--vermelho); border-color: transparent; opacity: 1; }
+.situacao.pedida { border-color: var(--vermelho); color: var(--vermelho); }
+.situacao:active:not(:disabled) { transform: scale(0.96); }
+.situacao-aviso { width: 100%; font-size: 12px; color: var(--texto-3); margin-top: 2px; }
+.erro, .status.erro { color: var(--erro); }
+
